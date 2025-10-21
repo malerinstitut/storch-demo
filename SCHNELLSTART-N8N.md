@@ -4,7 +4,7 @@
 
 ```
 Webhook (POST, CORS: *) 
-    → AI Agent (Prompt: ={{ $json.message }}) 
+    → AI Agent (Prompt: ={ $json.message }) 
         → Respond to Webhook (mit CORS-Headers)
 ```
 
@@ -43,7 +43,7 @@ Klicken Sie auf Ihren **AI Agent Node**:
 
 1. **Prompt (User Message):**
    - Source: **Manual** (nicht "Chat Trigger")
-   - Text: `={{ $json.message }}`
+   - Text: `={ $json.message }`
 
 **Screenshot-Hilfe:**
 ```
@@ -52,7 +52,7 @@ Klicken Sie auf Ihren **AI Agent Node**:
 ├─────────────────────────┤
 │ Source: Manual          │
 │ Prompt:                 │
-│  ={{ $json.message }}   │
+│  ={ $json.message }     │
 └─────────────────────────┘
 ```
 
@@ -66,7 +66,7 @@ Klicken Sie auf Ihren **Respond to Webhook Node**:
 1. **Respond With:** `Using an Expression`
 2. **Expression:**
    ```javascript
-   ={{ { "message": $json.output || $json.text || "Antwort" } }}
+   ={ { "message": $json.output || $json.text || "Antwort" } }
    ```
 
 ### **CORS Headers (WICHTIG!):**
@@ -94,7 +94,7 @@ Klicken Sie auf Ihren **Respond to Webhook Node**:
 ├─────────────────────────────────┤
 │ Respond With: Expression        │
 │ Expression:                     │
-│  ={{ { "message": $json.output }}│
+│  ={ { "message": $json.output } }│
 │                                 │
 │ Options:                        │
 │  ✅ Response Headers            │
@@ -148,10 +148,10 @@ curl -X POST https://n8n.malerinstitut.de/webhook-test/storch-demo `
 → **Lösung:** Workflow auf "Active" (grün) setzen
 
 ### ❌ "No prompt specified"
-→ **Lösung:** AI Agent Prompt auf `={{ $json.message }}` setzen
+→ **Lösung:** AI Agent Prompt auf `={ $json.message }` setzen
 
-### ❌ Chat zeigt "{{ $json.output }}" als Text
-→ **Lösung:** Response Expression muss `={{ ... }}` starten (mit `=`)
+### ❌ Chat zeigt den rohen Expression-Code als Text
+→ **Lösung:** Response Expression muss `={ ... }` starten (mit `=`)
 
 ### ❌ Funktioniert nur einmal nach "Execute Workflow"
 → **Lösung:** Workflow muss auf "Active" sein, nicht nur executed
@@ -162,7 +162,7 @@ curl -X POST https://n8n.malerinstitut.de/webhook-test/storch-demo `
 
 - [ ] Webhook: HTTP Method = POST ✅
 - [ ] Webhook: Options → Allowed Origins = `*` ✅
-- [ ] AI Agent: Prompt = `={{ $json.message }}` ✅
+- [ ] AI Agent: Prompt = `={ $json.message }` ✅
 - [ ] Respond: CORS-Headers (3 Stück) ✅
 - [ ] Workflow: Active = GRÜN ✅
 - [ ] Test: cURL gibt JSON zurück ✅
