@@ -180,12 +180,17 @@ class StorchChat {
         const imageUrls = [];
         const shopLinks = [];
         
-        // 1. Handle special image URLs: __SHOP_LINK_https://...__
-        // This regex captures the URL part without the prefix/suffix
+        // 1. Handle Markdown link syntax FIRST: [text](url) - aber NICHT für Bilder ![...]
+        const markdownLinkRegex = /(?<!!)\[([^\]]+)\]\(([^)]+)\)/g;
+        content = content.replace(markdownLinkRegex, (match, linkText, url) => {
+            shopLinks.push({ url: url, text: linkText });
+            return `__SHOP_LINK_PLACEHOLDER_${shopLinks.length - 1}__`;
+        });
+        
+        // 2. Handle special image URLs: __SHOP_LINK_https://...__
         const specialImagePattern = /__SHOP_LINK_(https?:\/\/[^_\s]+?)__/gi;
         content = content.replace(specialImagePattern, (match, urlPart) => {
             let fullUrl = urlPart;
-            // Ensure .jpg is appended if missing
             if (!fullUrl.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i)) {
                 fullUrl += '.jpg';
             }
@@ -193,19 +198,22 @@ class StorchChat {
             return `__IMAGE_PLACEHOLDER_${imageUrls.length - 1}__`;
         });
 
-        // 2. Handle Markdown image syntax: ![alt text](image_url)
+        // 3. Handle Markdown image syntax: ![alt text](image_url)
         const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
         content = content.replace(markdownImageRegex, (match, altText, imageUrl) => {
             imageUrls.push({ url: imageUrl, alt: altText });
             return `__IMAGE_PLACEHOLDER_${imageUrls.length - 1}__`;
         });
 
-        // 3. Handle shop links: https://shop.storch.de/...
-        // This regex captures the full shop URL but excludes trailing parentheses
-        const shopLinkRegex = /(https?:\/\/shop\.storch\.de[^\s)]*)/gi;
-        content = content.replace(shopLinkRegex, (match) => {
-            shopLinks.push(match);
-            return `__SHOP_LINK_PLACEHOLDER_${shopLinks.length - 1}__`;
+        // 4. Handle bare shop links: https://shop.storch.de/...
+        const bareShopLinkRegex = /(https?:\/\/shop\.storch\.de[^\s)]*)/gi;
+        content = content.replace(bareShopLinkRegex, (match) => {
+            // Nur ersetzen wenn nicht schon als Markdown-Link verarbeitet
+            if (!content.includes(`__SHOP_LINK_PLACEHOLDER_`)) {
+                shopLinks.push({ url: match, text: match });
+                return `__SHOP_LINK_PLACEHOLDER_${shopLinks.length - 1}__`;
+            }
+            return match;
         });
 
         // Split content by line breaks to handle multiline messages
@@ -230,17 +238,18 @@ class StorchChat {
                         }
                     } else if (part.startsWith('__SHOP_LINK_PLACEHOLDER_')) {
                         const index = parseInt(part.match(/\d+/)[0]);
-                        const url = shopLinks[index];
-                        if (url) {
+                        const linkData = shopLinks[index];
+                        if (linkData) {
                             const linkElement = document.createElement('a');
-                            linkElement.href = url;
-                            linkElement.textContent = '(Link)'; // Display "(Link)"
+                            linkElement.href = linkData.url || linkData;
+                            linkElement.textContent = linkData.text || linkData.url || linkData;
                             linkElement.target = '_blank';
                             linkElement.rel = 'noopener noreferrer';
                             linkElement.style.cssText = `
                                 color: #007bff;
                                 text-decoration: underline;
                                 cursor: pointer;
+                                word-break: break-all;
                             `;
                             lineElement.appendChild(linkElement);
                         }
