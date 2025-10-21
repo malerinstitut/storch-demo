@@ -22,96 +22,73 @@ async def handle_client(websocket):
     """Handle WebSocket client connection"""
     client_id = id(websocket)
     connected_clients.add(websocket)
-    print(f"Client verbunden: {client_id} (Gesamt: {len(connected_clients)})")
+    print(f"Client verbunden (Gesamt: {len(connected_clients)})")
+    
+    async def heartbeat():
+        """Send periodic heartbeats to keep connection alive"""
+        while websocket in connected_clients:
+            try:
+                await asyncio.sleep(30)
+                await websocket.send(json.dumps({
+                    "type": "heartbeat",
+                    "timestamp": datetime.now().isoformat()
+                }))
+            except:
+                break
+    
+    heartbeat_task = asyncio.create_task(heartbeat())
     
     try:
         # Send welcome message
         await websocket.send(json.dumps({
             "type": "connection",
             "status": "connected",
-            "message": "WebSocket-Verbindung erfolgreich hergestellt",
-            "timestamp": datetime.now().isoformat()
+            "message": "WebSocket-Verbindung hergestellt"
         }))
-        
-        # Keep connection alive with periodic heartbeats
-        async def heartbeat():
-            while True:
-                try:
-                    await asyncio.sleep(30)  # Every 30 seconds
-                    if websocket in connected_clients:
-                        await websocket.send(json.dumps({
-                            "type": "heartbeat",
-                            "timestamp": datetime.now().isoformat()
-                        }))
-                except Exception as e:
-                    print(f"Heartbeat-Fehler: {e}")
-                    break
-        
-        # Start heartbeat task
-        heartbeat_task = asyncio.create_task(heartbeat())
         
         # Handle incoming messages
         async for message in websocket:
             try:
                 data = json.loads(message)
-                print(f"Nachricht empfangen von {client_id}: {data.get('message', '')[:50]}...")
                 
-                # Handle different message types
                 if data.get('type') == 'ping':
-                    # Respond to ping
-                    await websocket.send(json.dumps({
-                        "type": "pong",
-                        "timestamp": datetime.now().isoformat()
-                    }))
-                elif data.get('type') == 'message' or 'message' in data:
-                    # Forward to n8n webhook
-                    response = await forward_to_n8n(data)
+                    await websocket.send(json.dumps({"type": "pong"}))
                     
-                    # Send response back to client
+                elif data.get('type') == 'message' or 'message' in data:
+                    print(f"Nachricht: {data.get('message', '')[:50]}...")
+                    response = await forward_to_n8n(data)
                     await websocket.send(json.dumps({
                         "type": "response",
-                        "data": response,
-                        "timestamp": datetime.now().isoformat()
+                        "data": response
                     }))
-                    print(f"Antwort gesendet an {client_id}")
                     
             except json.JSONDecodeError:
-                print(f"Ungueltige JSON-Nachricht von {client_id}")
                 await websocket.send(json.dumps({
                     "type": "error",
-                    "message": "Ungueltiges Nachrichtenformat",
-                    "timestamp": datetime.now().isoformat()
+                    "message": "Ungueltiges JSON-Format"
                 }))
             except Exception as e:
-                print(f"Fehler beim Verarbeiten der Nachricht: {e}")
+                print(f"Fehler: {e}")
                 await websocket.send(json.dumps({
                     "type": "error",
-                    "message": str(e),
-                    "timestamp": datetime.now().isoformat()
+                    "message": str(e)
                 }))
     
     except websockets.exceptions.ConnectionClosed:
-        print(f"Client getrennt: {client_id}")
-    except Exception as e:
-        print(f"Verbindungsfehler: {e}")
+        print(f"Client getrennt")
     finally:
-        # Cleanup
         connected_clients.discard(websocket)
         heartbeat_task.cancel()
-        print(f"Client entfernt: {client_id} (Gesamt: {len(connected_clients)})")
+        print(f"Verbindungen: {len(connected_clients)}")
 
 async def forward_to_n8n(data):
     """Forward message to n8n webhook"""
     try:
-        # Get webhook URL from data or use default
         webhook_url = data.get('webhookUrl', DEFAULT_N8N_WEBHOOK_URL)
-        print(f"Empfangene Daten: {data}")
-        print(f"Verwende Webhook-URL: {webhook_url}")
+        print(f"Sende an n8n: {data.get('message', '')[:50]}...")
         
-        # Prepare payload
+        # Prepare and send request
         payload = json.dumps(data).encode('utf-8')
-        
-        # Create request
         req = urllib.request.Request(
             webhook_url,
             data=payload,
@@ -119,105 +96,44 @@ async def forward_to_n8n(data):
             method='POST'
         )
         
-        # Send request (synchronous, but quick)
-        print(f"Sende an n8n: {data.get('message', '')[:50]}...")
         with urllib.request.urlopen(req, timeout=120) as response:
             response_data = response.read()
             
-            # Check if response is empty
-            print(f"n8n Response Status: {response.status}")
-            print(f"n8n Response Length: {len(response_data)} bytes")
-            
-            if not response_data or len(response_data) == 0:
-                print("n8n hat eine leere Antwort gesendet")
-                print("Tipp: Fuegen Sie einen 'Respond to Webhook' Node in n8n hinzu!")
+            if not response_data:
                 return {
-                    "message": "Ihre Nachricht wurde empfangen, aber n8n hat keine Antwort konfiguriert.",
-                    "hint": "Fuegen Sie einen 'Respond to Webhook' Node in Ihrem n8n Workflow hinzu."
+                    "message": "Nachricht empfangen. Fuegen Sie einen 'Respond to Webhook' Node in n8n hinzu."
                 }
             
-            # Try to parse JSON with safe encoding
+            # Decode and parse response
+            decoded = response_data.decode('utf-8', errors='replace')
             try:
-                # Decode with error handling for Unicode issues
-                try:
-                    decoded_response = response_data.decode('utf-8')
-                except UnicodeDecodeError:
-                    # Try with different encoding or replace problematic characters
-                    decoded_response = response_data.decode('utf-8', errors='replace')
-                    print("Unicode-Zeichen in n8n-Antwort durch ? ersetzt")
-                
-                result = json.loads(decoded_response)
-                print(f"n8n Antwort (JSON): {str(result)[:100]}...")
+                result = json.loads(decoded)
+                print(f"n8n Antwort: {str(result)[:100]}...")
                 return result
             except json.JSONDecodeError:
-                # Response is not JSON, return as text
-                try:
-                    text_response = response_data.decode('utf-8')
-                except UnicodeDecodeError:
-                    text_response = response_data.decode('utf-8', errors='replace')
-                    print("Unicode-Zeichen in n8n-Antwort durch ? ersetzt")
-                
-                print(f"n8n Antwort (Text): {text_response[:100]}...")
-                return {"message": text_response}
+                return {"message": decoded}
             
     except urllib.error.HTTPError as e:
-        error_msg = f"HTTP Error {e.code}: {e.reason}"
-        print(f"n8n Fehler: {error_msg}")
-        return {"error": error_msg, "message": "Webhook nicht erreichbar"}
+        print(f"HTTP Error {e.code}: {e.reason}")
+        return {"error": f"HTTP {e.code}", "message": "Webhook nicht erreichbar"}
     except urllib.error.URLError as e:
-        error_msg = f"URL Error: {e.reason}"
-        print(f"n8n Fehler: {error_msg}")
-        return {"error": error_msg, "message": "Webhook nicht erreichbar"}
+        print(f"URL Error: {e.reason}")
+        return {"error": "Verbindungsfehler", "message": "Webhook nicht erreichbar"}
     except Exception as e:
-        error_msg = str(e)
-        print(f"Unerwarteter Fehler: {error_msg}")
-        print("Tipp: Stellen Sie sicher, dass Ihr n8n Workflow einen 'Respond to Webhook' Node hat!")
-        
-        # Handle Unicode encoding errors specifically
-        if "charmap" in error_msg and "codec can't encode" in error_msg:
-            return {
-                "error": "Unicode-Encoding-Fehler",
-                "message": "n8n hat eine Antwort mit Unicode-Emojis gesendet, die nicht dargestellt werden können. Bitte verwenden Sie nur ASCII-Zeichen in Ihrem n8n Workflow."
-            }
-        
-        return {
-            "error": error_msg, 
-            "message": "Nachricht empfangen, aber n8n-Antwort fehlerhaft. Fuegen Sie 'Respond to Webhook' Node hinzu."
-        }
+        print(f"Fehler: {e}")
+        return {"error": str(e), "message": "Fehler beim Verarbeiten der Anfrage"}
 
 async def main():
     """Start WebSocket server"""
-    print("=" * 60)
-    print("WebSocket-Server startet...")
-    print(f"Port: {PORT}")
-    print(f"n8n Webhook: {DEFAULT_N8N_WEBHOOK_URL} (dynamisch)")
-    print("=" * 60)
+    print("=" * 50)
+    print(f"WebSocket-Server startet auf Port {PORT}")
+    print(f"n8n Webhook: {DEFAULT_N8N_WEBHOOK_URL}")
+    print("=" * 50)
     
-    # Start HTTP server for health checks
-    import aiohttp
-    from aiohttp import web
-    
-    async def health_check(request):
-        return web.json_response({"status": "healthy", "service": "storch-websocket"})
-    
-    # Create HTTP server for health checks
-    app = web.Application()
-    app.router.add_get('/health', health_check)
-    app.router.add_get('/', health_check)
-    
-    # Start HTTP server in background
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 8080)
-    await site.start()
-    print(f"Health check server läuft auf Port 8080")
-    
-    # Start WebSocket server
-    async with websockets.serve(handle_client, "0.0.0.0", PORT):
-        print(f"WebSocket-Server laeuft auf ws://0.0.0.0:{PORT}")
-        print("Die Verbindung bleibt jetzt konstant bestehen!")
-        print("Auto-Reconnect und Heartbeat aktiviert")
-        print("=" * 60)
+    async with websockets.serve(handle_client, "localhost", PORT):
+        print(f"✓ Server laeuft auf ws://localhost:{PORT}")
+        print("✓ Heartbeat und Auto-Reconnect aktiv")
+        print("=" * 50)
         await asyncio.Future()  # Run forever
 
 if __name__ == '__main__':

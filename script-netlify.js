@@ -1,12 +1,11 @@
-// Storch Chat Demo - JavaScript für n8n Webhook Integration
+// Storch Chat Demo - NETLIFY VERSION (ohne WebSocket-Server)
+// Direkter Zugriff auf n8n Webhook
 
 class StorchChat {
     constructor() {
-        // NETLIFY MODE: Direkter Zugriff auf n8n (ohne WebSocket-Server)
-        this.useNetlifyMode = true; // ✅ FÜR NETLIFY DEPLOYMENT
-        
-        // n8n Webhook URL (Production)
+        // Direkt zu n8n ohne WebSocket-Server
         this.webhookUrl = 'https://n8n.malerinstitut.de/webhook/storch-demo';
+        this.useDemoMode = false;
         this.apiKey = '';
         this.soundEnabled = true;
         this.isTyping = false;
@@ -20,16 +19,14 @@ class StorchChat {
         this.loadSettings();
         this.initializeVoiceInput();
         
-        // Zeige sofort "Online" an (direkte n8n Verbindung)
+        // Zeige sofort "Online" an
         this.updateConnectionStatus(true, false);
     }
 
     initializeChat() {
-        // Event Listeners
         document.getElementById('messageInput').addEventListener('input', this.handleInputChange.bind(this));
         document.getElementById('sendButton').addEventListener('click', this.sendMessage.bind(this));
         
-        // Enter key support
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -37,13 +34,8 @@ class StorchChat {
             }
         });
 
-        // Auto-focus input
         document.getElementById('messageInput').focus();
-        
-        // Initialize welcome message
         this.showWelcomeMessage();
-        
-        // Set status to online (direkte n8n Verbindung)
         this.updateConnectionStatus(true, false);
     }
 
@@ -51,7 +43,6 @@ class StorchChat {
         const input = e.target;
         const sendButton = document.getElementById('sendButton');
         
-        // Enable/disable send button based on input
         if (input.value.trim()) {
             sendButton.disabled = false;
             sendButton.classList.remove('btn-secondary');
@@ -75,7 +66,7 @@ class StorchChat {
         this.showTypingIndicator();
         
         try {
-            // NETLIFY MODE: Direkter POST an n8n
+            // Direkter POST an n8n
             const response = await fetch(this.webhookUrl, {
                 method: 'POST',
                 headers: {
@@ -105,40 +96,13 @@ class StorchChat {
             
         } catch (error) {
             this.hideTypingIndicator();
-            this.showNotification('Fehler: ' + error.message, 'danger');
+            this.showNotification('Fehler beim Senden: ' + error.message, 'danger');
         }
     }
-
-    getIntelligentDemoResponse(message) {
-        const lowerMessage = message.toLowerCase();
-        
-        // Intelligente Antworten basierend auf Kontext
-        if (lowerMessage.includes('hallo') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
-            return 'Hallo! Schön, dass Sie hier sind. Wie kann ich Ihnen heute helfen?';
-        } else if (lowerMessage.includes('wie geht') || lowerMessage.includes('wie geht\'s')) {
-            return 'Mir geht es gut, danke der Nachfrage! Wie kann ich Sie unterstützen?';
-        } else if (lowerMessage.includes('hilfe') || lowerMessage.includes('help')) {
-            return 'Ich bin hier, um Ihnen zu helfen! Stellen Sie mir einfach Ihre Frage und ich werde mein Bestes tun, um sie zu beantworten.';
-        } else if (lowerMessage.includes('danke') || lowerMessage.includes('thank')) {
-            return 'Sehr gerne! Wenn Sie noch weitere Fragen haben, bin ich für Sie da.';
-        } else if (lowerMessage.includes('tschüss') || lowerMessage.includes('bye')) {
-            return 'Auf Wiedersehen! Ich wünsche Ihnen einen schönen Tag. Kommen Sie gerne wieder!';
-        } else {
-            const responses = [
-                `Interessante Frage zu "${message}"! Als KI-Assistent kann ich Ihnen bei vielen Themen weiterhelfen.`,
-                `Vielen Dank für Ihre Nachricht. Ich habe verstanden: "${message}". Wie kann ich Ihnen damit weiterhelfen?`,
-                `Das ist eine gute Frage! Lassen Sie mich darüber nachdenken und Ihnen eine hilfreiche Antwort geben.`,
-                `Ich verstehe. Sie interessieren sich für "${message}". Können Sie mir mehr Details dazu geben?`
-            ];
-            return responses[Math.floor(Math.random() * responses.length)];
-        }
-    }
-
 
     addMessage(content, sender, type = 'normal') {
         const chatMessages = document.getElementById('chatMessages');
         
-        // Remove welcome message if it exists
         const welcomeMessage = chatMessages.querySelector('.welcome-message');
         if (welcomeMessage) {
             welcomeMessage.remove();
@@ -150,7 +114,6 @@ class StorchChat {
         const messageBubble = document.createElement('div');
         messageBubble.className = `message-bubble ${type}`;
         
-        // Handle content with images and text
         this.renderMessageContent(content, messageBubble);
         
         const messageTime = document.createElement('div');
@@ -164,10 +127,8 @@ class StorchChat {
         messageDiv.appendChild(messageTime);
         chatMessages.appendChild(messageDiv);
         
-        // Scroll to bottom
         chatMessages.scrollTop = chatMessages.scrollHeight;
         
-        // Store in history
         this.messageHistory.push({
             content,
             sender,
@@ -180,12 +141,9 @@ class StorchChat {
         const imageUrls = [];
         const shopLinks = [];
         
-        // 1. Handle special image URLs: __SHOP_LINK_https://...__
-        // This regex captures the URL part without the prefix/suffix
         const specialImagePattern = /__SHOP_LINK_(https?:\/\/[^_\s]+?)__/gi;
         content = content.replace(specialImagePattern, (match, urlPart) => {
             let fullUrl = urlPart;
-            // Ensure .jpg is appended if missing
             if (!fullUrl.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i)) {
                 fullUrl += '.jpg';
             }
@@ -193,22 +151,18 @@ class StorchChat {
             return `__IMAGE_PLACEHOLDER_${imageUrls.length - 1}__`;
         });
 
-        // 2. Handle Markdown image syntax: ![alt text](image_url)
         const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
         content = content.replace(markdownImageRegex, (match, altText, imageUrl) => {
             imageUrls.push({ url: imageUrl, alt: altText });
             return `__IMAGE_PLACEHOLDER_${imageUrls.length - 1}__`;
         });
 
-        // 3. Handle shop links: https://shop.storch.de/...
-        // This regex captures the full shop URL but excludes trailing parentheses
         const shopLinkRegex = /(https?:\/\/shop\.storch\.de[^\s)]*)/gi;
         content = content.replace(shopLinkRegex, (match) => {
             shopLinks.push(match);
             return `__SHOP_LINK_PLACEHOLDER_${shopLinks.length - 1}__`;
         });
 
-        // Split content by line breaks to handle multiline messages
         const lines = content.split('\n');
 
         lines.forEach((line) => {
@@ -216,7 +170,6 @@ class StorchChat {
                 const lineElement = document.createElement('div');
                 lineElement.className = 'message-line';
 
-                // Split line by all placeholders
                 const parts = line.split(/(__IMAGE_PLACEHOLDER_\d+__)|(__SHOP_LINK_PLACEHOLDER_\d+__)/g);
 
                 parts.forEach((part) => {
@@ -234,7 +187,7 @@ class StorchChat {
                         if (url) {
                             const linkElement = document.createElement('a');
                             linkElement.href = url;
-                            linkElement.textContent = '(Link)'; // Display "(Link)"
+                            linkElement.textContent = '(Link)';
                             linkElement.target = '_blank';
                             linkElement.rel = 'noopener noreferrer';
                             linkElement.style.cssText = `
@@ -245,7 +198,6 @@ class StorchChat {
                             lineElement.appendChild(linkElement);
                         }
                     } else {
-                        // Handle bold text: **text**
                         this.renderBoldText(part, lineElement);
                     }
                 });
@@ -268,12 +220,10 @@ class StorchChat {
             cursor: pointer;
         `;
         
-        // Add click to enlarge functionality
         img.addEventListener('click', () => {
             this.showImageModal(imageUrl);
         });
         
-        // Add error handling
         img.addEventListener('error', () => {
             img.style.display = 'none';
             const errorDiv = document.createElement('div');
@@ -286,21 +236,18 @@ class StorchChat {
     }
 
     renderBoldText(text, container) {
-        // Handle bold text: **text**
         const boldRegex = /\*\*(.*?)\*\*/g;
         const parts = text.split(boldRegex);
         
         parts.forEach((part, index) => {
             if (!part) return;
             
-            // Odd indices are bold text (captured groups)
             if (index % 2 === 1) {
                 const boldElement = document.createElement('strong');
                 boldElement.textContent = part;
                 boldElement.style.fontWeight = 'bold';
                 container.appendChild(boldElement);
             } else {
-                // Even indices are regular text
                 const textNode = document.createTextNode(part);
                 container.appendChild(textNode);
             }
@@ -308,7 +255,6 @@ class StorchChat {
     }
 
     showImageModal(imageUrl) {
-        // Create modal for image enlargement
         const modal = document.createElement('div');
         modal.className = 'image-modal';
         modal.style.cssText = `
@@ -337,12 +283,10 @@ class StorchChat {
         modal.appendChild(img);
         document.body.appendChild(modal);
         
-        // Close on click
         modal.addEventListener('click', () => {
             document.body.removeChild(modal);
         });
         
-        // Close on escape key
         const handleEscape = (e) => {
             if (e.key === 'Escape') {
                 document.body.removeChild(modal);
@@ -399,7 +343,6 @@ class StorchChat {
     }
 
     playNotificationSound() {
-        // Create a simple notification sound
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
@@ -449,8 +392,6 @@ class StorchChat {
             soundEnabled: this.soundEnabled
         }));
         
-        console.log('Einstellungen gespeichert');
-        
         const modal = bootstrap.Modal.getInstance(document.getElementById('settingsModal'));
         modal.hide();
         this.showNotification('Einstellungen gespeichert!', 'success');
@@ -465,16 +406,13 @@ class StorchChat {
             this.apiKey = parsedSettings.apiKey || '';
             this.soundEnabled = parsedSettings.soundEnabled !== false;
             
-            // Update UI
             document.getElementById('webhookUrl').value = this.webhookUrl;
             document.getElementById('apiKey').value = this.apiKey;
             document.getElementById('soundEnabled').checked = this.soundEnabled;
         }
     }
-    
 
     showNotification(message, type = 'info') {
-        // Create a simple notification
         const notification = document.createElement('div');
         notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
         notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
@@ -485,7 +423,6 @@ class StorchChat {
         
         document.body.appendChild(notification);
         
-        // Auto-remove after 3 seconds
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.remove();
@@ -493,9 +430,7 @@ class StorchChat {
         }, 3000);
     }
 
-    // Voice Input Functionality
     initializeVoiceInput() {
-        // Check if browser supports Web Speech API
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             this.recognition = new SpeechRecognition();
@@ -535,8 +470,6 @@ class StorchChat {
                     this.showNotification(`Sprachfehler: ${event.error}`, 'danger');
                 }
             };
-        } else {
-            console.warn('Web Speech API wird von diesem Browser nicht unterstützt');
         }
     }
 
@@ -557,7 +490,6 @@ class StorchChat {
         this.showNotification('Sprachassistent ist derzeit nicht verfügbar', 'info');
     }
 
-    // Update Connection Status
     updateConnectionStatus(isOnline, isDemo = false) {
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
@@ -573,11 +505,7 @@ class StorchChat {
         }
     }
 
-    // Test WebSocket Connection
     async testWebhookConnection() {
-        const testButton = document.getElementById('testConnectionButton');
-        testButton.classList.add('testing');
-        
         this.showNotification('Verbindung wird getestet...', 'info');
         
         try {
@@ -595,12 +523,10 @@ class StorchChat {
         } catch (error) {
             this.showNotification('❌ Verbindungsfehler', 'danger');
         }
-        
-        testButton.classList.remove('testing');
     }
 }
 
-// Global functions for HTML onclick handlers
+// Global functions
 let chatInstance;
 
 function handleKeyPress(event) {
@@ -611,67 +537,52 @@ function handleKeyPress(event) {
 }
 
 function sendMessage() {
-    if (chatInstance) {
-        chatInstance.sendMessage();
-    }
+    if (chatInstance) chatInstance.sendMessage();
 }
 
 function clearChat() {
-    if (chatInstance) {
-        chatInstance.clearChat();
-    }
+    if (chatInstance) chatInstance.clearChat();
 }
 
 function toggleSettings() {
-    if (chatInstance) {
-        chatInstance.toggleSettings();
-    }
+    if (chatInstance) chatInstance.toggleSettings();
 }
 
 function saveSettings() {
-    if (chatInstance) {
-        chatInstance.saveSettings();
-    }
+    if (chatInstance) chatInstance.saveSettings();
 }
 
 function toggleVoiceInput() {
-    if (chatInstance) {
-        chatInstance.toggleVoiceInput();
-    }
+    if (chatInstance) chatInstance.toggleVoiceInput();
 }
 
 function toggleVoiceAssistant() {
-    if (chatInstance) {
-        chatInstance.toggleVoiceAssistant();
-    }
+    if (chatInstance) chatInstance.toggleVoiceAssistant();
 }
 
 function testConnection() {
-    if (chatInstance) {
-        chatInstance.testWebhookConnection();
-    }
+    if (chatInstance) chatInstance.testWebhookConnection();
 }
-
 
 function copyUrl() {
     const urlInput = document.getElementById('webhookUrl');
     urlInput.select();
-    urlInput.setSelectionRange(0, 99999); // For mobile devices
+    urlInput.setSelectionRange(0, 99999);
     
     try {
         document.execCommand('copy');
-        chatInstance.showNotification('📋 URL in Zwischenablage kopiert', 'success');
+        chatInstance.showNotification('📋 URL kopiert', 'success');
     } catch (err) {
-        // Fallback for modern browsers
         navigator.clipboard.writeText(urlInput.value).then(() => {
-            chatInstance.showNotification('📋 URL in Zwischenablage kopiert', 'success');
+            chatInstance.showNotification('📋 URL kopiert', 'success');
         }).catch(() => {
             chatInstance.showNotification('❌ Kopieren fehlgeschlagen', 'danger');
         });
     }
 }
 
-// Initialize chat when DOM is loaded
+// Initialize
 document.addEventListener('DOMContentLoaded', function() {
     chatInstance = new StorchChat();
 });
+
