@@ -193,8 +193,28 @@ async def main():
     print(f"n8n Webhook: {DEFAULT_N8N_WEBHOOK_URL} (dynamisch)")
     print("=" * 60)
     
-    async with websockets.serve(handle_client, "localhost", PORT):
-        print(f"WebSocket-Server laeuft auf ws://localhost:{PORT}")
+    # Start HTTP server for health checks
+    import aiohttp
+    from aiohttp import web
+    
+    async def health_check(request):
+        return web.json_response({"status": "healthy", "service": "storch-websocket"})
+    
+    # Create HTTP server for health checks
+    app = web.Application()
+    app.router.add_get('/health', health_check)
+    app.router.add_get('/', health_check)
+    
+    # Start HTTP server in background
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 8080)
+    await site.start()
+    print(f"Health check server läuft auf Port 8080")
+    
+    # Start WebSocket server
+    async with websockets.serve(handle_client, "0.0.0.0", PORT):
+        print(f"WebSocket-Server laeuft auf ws://0.0.0.0:{PORT}")
         print("Die Verbindung bleibt jetzt konstant bestehen!")
         print("Auto-Reconnect und Heartbeat aktiviert")
         print("=" * 60)

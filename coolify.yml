@@ -1,0 +1,17 @@
+# Coolify Deployment Configuration
+version: '1.0'
+
+services:
+  storch-demo:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL}
+      - PORT=3001
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
