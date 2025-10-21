@@ -3,7 +3,12 @@
 class StorchChat {
     constructor() {
         // WebSocket URL (lokaler WebSocket-Server)
-        this.websocketUrl = 'ws://localhost:3001';
+        // Production WebSocket URL (ersetzen Sie mit Ihrer Coolify-Domain)
+        // Production WebSocket URL (ersetzen Sie mit Ihrer tatsächlichen Coolify-Domain)
+        this.websocketUrl = 'wss://storch-demo.malerinstitut.de';
+        
+        // Für lokale Entwicklung (auskommentieren für Produktion)
+        // this.websocketUrl = 'ws://localhost:3001';
         this.websocket = null;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 10;
