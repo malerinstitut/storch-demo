@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STORCH | KI-Helfer</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-window">
+            <!-- Chat Header -->
+            <div class="chat-header-new">
+                <div class="text-center py-3">
+                    <img src="Storch_Logo_DE_Claim.png" alt="Storch Logo" class="logo-full mb-2">
+                    <h5 class="mb-0 fw-bold">KI-Helfer V.0.4</h5>
+                    <small class="text-muted d-flex align-items-center justify-content-center">
+                        <span class="status-dot offline me-1" id="statusDot"></span>
+                        <span id="statusText">Offline</span>
+                    </small>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div class="chat-messages-new" id="chatMessages">
+                <!-- Welcome message wird von JavaScript eingefügt -->
+            </div>
+
+            <!-- Chat Input -->
+            <div class="chat-input-new">
+                <div class="input-wrapper">
+                    <input type="text" class="form-control-new" id="messageInput" placeholder="Nachricht eingeben oder Mikrofon nutzen..." 
+                           onkeypress="handleKeyPress(event)">
+                    <button class="btn-voice-input" type="button" onclick="toggleVoiceInput()" id="voiceInputButton" title="Spracheingabe">
+                        <i class="bi bi-mic-fill"></i>
+                    </button>
+                    <button class="btn-send-ios" type="button" onclick="sendMessage()" id="sendButton">
+                        <i class="bi bi-arrow-up-circle-fill"></i>
+                    </button>
+                </div>
+                <div class="text-center mt-2">
+                    <small class="text-muted">
+                        <i class="bi bi-shield-check me-1"></i> Sichere Verbindung zu n8n
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Button -->
+        <button class="btn-settings" onclick="toggleSettings()" title="Einstellungen">
+            <i class="bi bi-gear-fill"></i>
+        </button>
+
+        <!-- Clear Chat Button -->
+        <button class="btn-clear" onclick="clearChat()" title="Chat leeren">
+            <i class="bi bi-trash-fill"></i>
+        </button>
+
+        <!-- Voice Assistant Button (ElevenLabs) - Rechts oben -->
+        <button class="btn-voice-assistant" onclick="toggleVoiceAssistant()" title="Sprachassistent (ElevenLabs)" id="voiceAssistantButton">
+            <i class="bi bi-mic-fill"></i>
+        </button>
+
+        <!-- Test Connection Button -->
+        <button class="btn-test-connection" onclick="testConnection()" title="Verbindung testen" id="testConnectionButton">
+            <i class="bi bi-arrow-repeat"></i>
+        </button>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center py-4">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Lädt...</span>
+                    </div>
+                    <p class="mb-0">Nachricht wird verarbeitet...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Einstellungen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="webhookUrl" class="form-label">n8n Webhook URL</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="webhookUrl" 
+                                   value="https://n8n.malerinstitut.de/webhook/storch-demo">
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyUrl()" title="URL kopieren">
+                                📋
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="apiKey" class="form-label">API Key (optional)</label>
+                        <input type="password" class="form-control" id="apiKey" placeholder="Falls erforderlich">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="soundEnabled" checked>
+                        <label class="form-check-label" for="soundEnabled">
+                            Benachrichtigungssound aktivieren
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" onclick="saveSettings()">Speichern</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="script.js"></script>
+</body>
+</html>
